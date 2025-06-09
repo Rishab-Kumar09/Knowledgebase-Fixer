@@ -36,7 +36,10 @@ RECOMMENDED UPDATES
 - [Update 1]
 - [Update 2]
 - [Update 3]
-- [Update 4]`;
+- [Update 4]
+
+Article Content:
+{content}`;
 
 async function analyzeArticle(content) {
   try {
@@ -49,7 +52,7 @@ async function analyzeArticle(content) {
         },
         {
           role: "user",
-          content: ANALYSIS_PROMPT.replace("{content}", content)
+          content: ANALYSIS_PROMPT.replace("{content}", content || "No content provided")
         }
       ],
       temperature: 0.1
@@ -63,6 +66,7 @@ async function analyzeArticle(content) {
     console.error('Analysis failed:', error);
     return {
       timestamp: new Date().toISOString(),
+      error: error.message,
       analysis: `VERSION INFORMATION
 Versions Mentioned: None found
 Latest Version: Unknown
@@ -89,21 +93,53 @@ RECOMMENDED UPDATES
 }
 
 exports.handler = async function(event, context) {
+  // Set CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  // Handle OPTIONS request for CORS
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers
+    };
+  }
+
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
 
   try {
     // Get articles from Supabase
-    const { data: articles, error } = await supabase
+    const { data: articles, error: dbError } = await supabase
       .from('articles')
       .select('*');
 
-    if (error) throw error;
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to fetch articles from database');
+    }
+
+    if (!articles || articles.length === 0) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          total_articles: 0,
+          articles_with_issues: 0,
+          results: []
+        })
+      };
+    }
 
     // Analyze each article
     const results = await Promise.all(
@@ -111,23 +147,21 @@ exports.handler = async function(event, context) {
         const result = await analyzeArticle(article.content);
         return {
           article_path: article.path,
-          analysis: result
+          ...result
         };
       })
     );
 
     // Count articles with issues
     const articlesWithIssues = results.filter(result => {
-      const analysis = result.analysis.analysis;
+      const analysis = result.analysis;
       return analysis.includes('ISSUES FOUND') && 
-             analysis.split('ISSUES FOUND')[1].split('RECOMMENDED UPDATES')[0].includes('-');
+             analysis.split('ISSUES FOUND')[1].split('RECOMMENDED UPDATES')[0].trim() !== '';
     }).length;
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         total_articles: articles.length,
         articles_with_issues: articlesWithIssues,
@@ -138,7 +172,11 @@ exports.handler = async function(event, context) {
     console.error('Function error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' })
+      headers,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message
+      })
     };
   }
 } 

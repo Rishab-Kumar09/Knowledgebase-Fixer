@@ -77,6 +77,30 @@
             margin-bottom: 20px;
             padding: 15px;
             border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-version, .section-quality, .section-issues, .section-updates {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .section-version {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        .section-quality {
+            background-color: rgba(25, 135, 84, 0.1);
+        }
+        .section-issues {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        .section-updates {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+        .analysis-content {
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -238,83 +262,70 @@
             analyzeExistingBtn.addEventListener('click', async () => {
                 loading.style.display = 'flex';
                 try {
-                    const response = await fetch('/api/analyze', {
-                        method: 'POST'
+                    const response = await fetch('/.netlify/functions/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
                     displayAnalysisResults(data);
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('An error occurred during analysis');
+                    alert('An error occurred during analysis: ' + error.message);
                 } finally {
                     loading.style.display = 'none';
                 }
             });
 
-            function displayAnalysisResults(results) {
-                const analysisDiv = document.getElementById('analysisResults');
-                const articleAnalysesDiv = document.getElementById('articleAnalyses');
-                analysisDiv.style.display = 'block';
-                articleAnalysesDiv.innerHTML = '';
-
-                // Update summary counts
-                document.getElementById('totalArticles').textContent = results.total_articles;
-                document.getElementById('articlesWithIssues').textContent = results.articles_with_issues;
-
-                // Display individual article analyses
-                results.results.forEach(result => {
-                    const articleDiv = document.createElement('div');
-                    articleDiv.className = 'article-analysis mb-4 p-3 border rounded';
+            function displayAnalysisResults(data) {
+                // Show results section
+                results.style.display = 'block';
+                
+                // Update summary
+                document.getElementById('totalArticles').textContent = data.total_articles;
+                document.getElementById('articlesWithIssues').textContent = data.articles_with_issues;
+                
+                // Clear previous results
+                const articleAnalyses = document.getElementById('articleAnalyses');
+                articleAnalyses.innerHTML = '';
+                
+                // Display each article's analysis
+                data.results.forEach((result, index) => {
+                    const analysisDiv = document.createElement('div');
+                    analysisDiv.className = 'article-analysis border rounded';
                     
-                    // Article title
-                    const title = document.createElement('h4');
-                    title.textContent = result.article_path;
-                    articleDiv.appendChild(title);
-
-                    // Split analysis into sections
-                    const analysis = result.analysis.analysis;
-                    const sections = analysis.split(/\n\n(?=[A-Z ]+\n)/);
+                    // Split the analysis into sections
+                    const sections = result.analysis.split('\n\n');
+                    let formattedAnalysis = '';
                     
                     sections.forEach(section => {
-                        if (!section.trim()) return;
-                        
-                        const sectionDiv = document.createElement('div');
-                        sectionDiv.className = 'p-3 mb-3 rounded';
-                        
-                        // Color-code based on section content
-                        if (section.startsWith('VERSION INFORMATION')) {
-                            sectionDiv.className += ' bg-info bg-opacity-10';
-                        } else if (section.startsWith('CONTENT QUALITY')) {
-                            sectionDiv.className += ' bg-success bg-opacity-10';
-                        } else if (section.startsWith('ISSUES FOUND')) {
-                            sectionDiv.className += ' bg-danger bg-opacity-10';
-                        } else if (section.startsWith('RECOMMENDED UPDATES')) {
-                            sectionDiv.className += ' bg-warning bg-opacity-10';
+                        if (section.includes('VERSION INFORMATION')) {
+                            formattedAnalysis += `<div class="section-version text-primary">${section}</div>`;
+                        } else if (section.includes('CONTENT QUALITY')) {
+                            formattedAnalysis += `<div class="section-quality text-success">${section}</div>`;
+                        } else if (section.includes('ISSUES FOUND')) {
+                            formattedAnalysis += `<div class="section-issues text-danger">${section}</div>`;
+                        } else if (section.includes('RECOMMENDED UPDATES')) {
+                            formattedAnalysis += `<div class="section-updates text-warning">${section}</div>`;
                         }
-                        
-                        // Format section content
-                        const lines = section.split('\n');
-                        const formattedLines = lines.map(line => {
-                            line = line.trim();
-                            if (/^[A-Z ]+$/.test(line)) {
-                                // Section header
-                                return `<h5 class="mb-3">${line}</h5>`;
-                            } else if (line.includes(':')) {
-                                // Key-value pairs
-                                const [key, value] = line.split(':');
-                                return `<p class="mb-2"><strong>${key.trim()}:</strong> ${value.trim()}</p>`;
-                            } else if (line.startsWith('-')) {
-                                // Bullet points
-                                return `<p class="mb-2 ps-3">• ${line.substring(1).trim()}</p>`;
-                            }
-                            return `<p class="mb-2">${line}</p>`;
-                        });
-                        
-                        sectionDiv.innerHTML = formattedLines.join('');
-                        articleDiv.appendChild(sectionDiv);
                     });
-
-                    articleAnalysesDiv.appendChild(articleDiv);
+                    
+                    analysisDiv.innerHTML = `
+                        <div class="p-3">
+                            <h5 class="mb-3">Article ${index + 1}: ${result.article_path}</h5>
+                            <div class="analysis-content">
+                                ${formattedAnalysis}
+                            </div>
+                        </div>
+                    `;
+                    
+                    articleAnalyses.appendChild(analysisDiv);
                 });
             }
         });

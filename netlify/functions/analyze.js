@@ -142,8 +142,8 @@ exports.handler = async function(event, context) {
     // Get articles from Supabase
     console.log('Fetching articles from Supabase...');
     const { data: articles, error: dbError } = await supabase
-      .from('articles')
-      .select('*');
+      .from('kb_articles')
+      .select('id, title, content, type, version, tags, author, status');
 
     if (dbError) {
       console.error('Database error:', dbError);
@@ -168,10 +168,12 @@ exports.handler = async function(event, context) {
     // Analyze each article
     const results = await Promise.all(
       articles.map(async (article) => {
-        console.log(`Analyzing article: ${article.path}`);
+        console.log(`Analyzing article: ${article.title}`);
         const result = await analyzeArticle(article.content);
         return {
-          article_path: article.path,
+          article_title: article.title,
+          article_version: article.version,
+          article_type: article.type,
           ...result
         };
       })

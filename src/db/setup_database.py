@@ -1,43 +1,36 @@
 import os
-import sys
-from pathlib import Path
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-# Add the parent directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
+# Load environment variables from .env
+load_dotenv()
 
-from db.supabase_client import SupabaseManager
+# Get Supabase credentials
+supabase_url = os.getenv('SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_KEY')
 
-def setup_database():
-    """Set up the database schema in Supabase."""
-    try:
-        # Initialize Supabase client
-        supabase = SupabaseManager()
-        
-        # Read the schema file
-        schema_path = Path(__file__).parent / 'schema.sql'
-        with open(schema_path, 'r') as f:
-            schema_sql = f.read()
-        
-        # Split the schema into individual statements
-        statements = schema_sql.split(';')
-        
-        print("Setting up database schema...")
-        for statement in statements:
-            statement = statement.strip()
-            if statement:  # Skip empty statements
-                try:
-                    # Execute each statement
-                    supabase.execute_sql(statement)
-                    print("✓ Executed SQL statement successfully")
-                except Exception as e:
-                    print(f"✗ Error executing statement: {str(e)}")
-                    print(f"Statement was: {statement[:100]}...")
-        
-        print("\nDatabase setup completed!")
-        
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        sys.exit(1)
+if not supabase_url or not supabase_key:
+    print("Error: SUPABASE_URL and SUPABASE_KEY environment variables are required")
+    exit(1)
 
-if __name__ == "__main__":
-    setup_database() 
+try:
+    # Initialize Supabase client
+    supabase: Client = create_client(supabase_url, supabase_key)
+    
+    # Create the kb_articles table with minimal structure
+    create_table_sql = """
+    create table if not exists kb_articles (
+        id uuid default uuid_generate_v4() primary key,
+        path text not null,
+        content text not null,
+        created_at timestamp with time zone default timezone('utc'::text, now()) not null
+    );
+    """
+    
+    # Execute the SQL commands
+    result = supabase.table('kb_articles').select("*").execute()
+    print("Database setup completed successfully")
+    
+except Exception as e:
+    print(f"Error setting up database: {str(e)}")
+    exit(1) 

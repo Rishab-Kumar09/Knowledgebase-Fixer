@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+from openai import OpenAI
 
 from parsers.file_parser import FileParser
 from analyzer.content_analyzer import ContentAnalyzer

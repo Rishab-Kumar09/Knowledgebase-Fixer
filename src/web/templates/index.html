@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .dropzone {
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .dropzone:hover {
+            background: #e9ecef;
+        }
+        .dropzone.dragover {
+            background: #e2e6ea;
+            border-color: #6c757d;
+        }
+        .selected-files {
+            margin-top: 15px;
+        }
+        .selected-file {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            background: #e9ecef;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .remove-file {
+            cursor: pointer;
+            color: #dc3545;
+        }
+        .issue {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .issue.high {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .issue.medium {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+        }
+        .issue.low {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        #loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .spinner-container {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner-container">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Analyzing articles...</p>
+        </div>
+    </div>
+
+    <div class="container mt-5">
+        <h1 class="mb-4">Knowledge Base Analyzer</h1>
+        
+        <ul class="nav nav-tabs" id="analyzerTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">
+                    Upload Articles
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="existing-tab" data-bs-toggle="tab" data-bs-target="#existing" type="button" role="tab">
+                    Existing Articles
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="analyzerTabContent">
+            <!-- Upload Articles Tab -->
+            <div class="tab-pane fade show active" id="upload" role="tabpanel">
+                <div class="dropzone" id="drop-zone">
+                    <p class="mb-0">Drag and drop files here or click to select</p>
+                    <p class="text-muted small">Supported formats: .md, .html, .txt</p>
+                    <input type="file" id="file-input" multiple style="display: none">
+                </div>
+                <div class="selected-files" id="selected-files"></div>
+                <button class="btn btn-primary mt-3" id="analyze-btn" disabled>Analyze Articles</button>
+            </div>
+
+            <!-- Existing Articles Tab -->
+            <div class="tab-pane fade" id="existing" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Analyze Existing Knowledge Base</h5>
+                        <p class="card-text">Click the button below to analyze all articles in the database for conflicts and issues.</p>
+                        <button class="btn btn-primary" id="analyze-existing-btn">
+                            Analyze Existing Articles
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="analysisResults" class="mt-4" style="display: none;">
+            <h3>Analysis Results</h3>
+            <div class="summary-section p-3 mb-4 bg-light rounded">
+                <h4>Summary</h4>
+                <p>Total Articles: <span id="totalArticles">0</span></p>
+                <p>Articles with Issues: <span id="articlesWithIssues">0</span></p>
+            </div>
+            <div id="articleAnalyses"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const selectedFiles = document.getElementById('selected-files');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const analyzeExistingBtn = document.getElementById('analyze-existing-btn');
+            const results = document.getElementById('analysisResults');
+            const loading = document.getElementById('loading');
+            let files = [];
+
+            // Drag and drop handlers
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+
+            dropZone.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+
+            function handleFiles(newFiles) {
+                const validExtensions = ['.md', '.html', '.txt'];
+                Array.from(newFiles).forEach(file => {
+                    const ext = '.' + file.name.split('.').pop().toLowerCase();
+                    if (validExtensions.includes(ext)) {
+                        files.push(file);
+                    }
+                });
+                updateFileList();
+            }
+
+            function updateFileList() {
+                selectedFiles.innerHTML = '';
+                files.forEach((file, index) => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'selected-file';
+                    fileDiv.innerHTML = `
+                        <span>${file.name}</span>
+                        <span class="remove-file" data-index="${index}">×</span>
+                    `;
+                    selectedFiles.appendChild(fileDiv);
+                });
+                analyzeBtn.disabled = files.length === 0;
+            }
+
+            selectedFiles.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-file')) {
+                    const index = parseInt(e.target.dataset.index);
+                    files.splice(index, 1);
+                    updateFileList();
+                }
+            });
+
+            // Handle file upload and analysis
+            analyzeBtn.addEventListener('click', async () => {
+                loading.style.display = 'flex';
+                const formData = new FormData();
+                files.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                try {
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    displayAnalysisResults(data);
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred during analysis');
+                } finally {
+                    loading.style.display = 'none';
+                }
+            });
+
+            // Handle existing articles analysis
+            analyzeExistingBtn.addEventListener('click', async () => {
+                loading.style.display = 'flex';
+                try {
+                    const response = await fetch('/analyze-existing', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    displayAnalysisResults(data);
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred during analysis');
+                } finally {
+                    loading.style.display = 'none';
+                }
+            });
+
+            function displayAnalysisResults(results) {
+                const analysisDiv = document.getElementById('analysisResults');
+                const articleAnalysesDiv = document.getElementById('articleAnalyses');
+                analysisDiv.style.display = 'block';
+                articleAnalysesDiv.innerHTML = '';
+
+                // Update summary counts
+                document.getElementById('totalArticles').textContent = results.total_articles;
+                document.getElementById('articlesWithIssues').textContent = results.articles_with_issues;
+
+                // Display individual article analyses
+                results.results.forEach(result => {
+                    const articleDiv = document.createElement('div');
+                    articleDiv.className = 'article-analysis mb-4 p-3 border rounded';
+                    
+                    // Article title
+                    const title = document.createElement('h4');
+                    title.textContent = result.article_path;
+                    articleDiv.appendChild(title);
+
+                    // Split analysis into sections
+                    const analysis = result.analysis.analysis;
+                    const sections = analysis.split(/\n\n(?=[A-Z ]+\n)/);
+                    
+                    sections.forEach(section => {
+                        if (!section.trim()) return;
+                        
+                        const sectionDiv = document.createElement('div');
+                        sectionDiv.className = 'p-3 mb-3 rounded';
+                        
+                        // Color-code based on section content
+                        if (section.startsWith('VERSION INFORMATION')) {
+                            sectionDiv.className += ' bg-info bg-opacity-10';
+                        } else if (section.startsWith('CONTENT QUALITY')) {
+                            sectionDiv.className += ' bg-success bg-opacity-10';
+                        } else if (section.startsWith('ISSUES FOUND')) {
+                            sectionDiv.className += ' bg-danger bg-opacity-10';
+                        } else if (section.startsWith('SUGGESTED IMPROVEMENTS')) {
+                            sectionDiv.className += ' bg-warning bg-opacity-10';
+                        }
+                        
+                        // Format section content
+                        const lines = section.split('\n');
+                        const formattedLines = lines.map(line => {
+                            line = line.trim();
+                            if (/^[A-Z ]+$/.test(line)) {
+                                // Section header
+                                return `<h5 class="mb-3">${line}</h5>`;
+                            } else if (line.includes(':')) {
+                                // Key-value pairs
+                                const [key, value] = line.split(':');
+                                return `<p class="mb-2"><strong>${key.trim()}:</strong> ${value.trim()}</p>`;
+                            } else if (line.startsWith('-')) {
+                                // Bullet points
+                                return `<p class="mb-2 ps-3">• ${line.substring(1).trim()}</p>`;
+                            }
+                            return `<p class="mb-2">${line}</p>`;
+                        });
+                        
+                        sectionDiv.innerHTML = formattedLines.join('');
+                        articleDiv.appendChild(sectionDiv);
+                    });
+
+                    articleAnalysesDiv.appendChild(articleDiv);
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

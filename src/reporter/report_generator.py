@@ -7,14 +7,18 @@ import jinja2
 
 logger = logging.getLogger(__name__)
 
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
 class ReportGenerator:
     """Generates analysis reports in various formats."""
     
     def __init__(self):
         self.markdown_template = """# Knowledge Base Analysis Report
-Generated: {{ timestamp }}
-
-## Summary
+## Summary {{ timestamp }}
 Total Articles Analyzed: {{ total_articles }}
 Articles with Issues: {{ articles_with_issues }}
 Average Quality Score: {{ average_score }}
@@ -24,26 +28,27 @@ Average Quality Score: {{ average_score }}
 {% for result in results %}
 ### {{ result.article.path }}
 **Type**: {{ result.article.type }}
-**Quality Score**: {{ result.analysis.score }}
+**Quality Score**: {% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.score }}{% endif %}
 
 #### Issues Found:
-{% for issue in result.analysis.issues %}
+{% if result.analysis and result.analysis.analysis and result.analysis.analysis.issues %}
+{% for issue in result.analysis.analysis.issues %}
 * **{{ issue.type|title }}** (Severity: {{ issue.severity }})
   - {{ issue.description }}
   - Suggestion: {{ issue.suggestion }}
 {% endfor %}
+{% endif %}
 
 #### Summary:
-{{ result.analysis.summary }}
+{% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.summary }}{% endif %}
 
 #### Suggested Updates:
 ```
-{{ result.analysis.suggested_updates }}
+{% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.suggested_updates }}{% endif %}
 ```
 
 ---
-{% endfor %}
-"""
+{% endfor %}"""
 
         self.html_template = """<!DOCTYPE html>
 <html>
@@ -74,22 +79,24 @@ Average Quality Score: {{ average_score }}
     <div class="article">
         <h3>{{ result.article.path }}</h3>
         <p><strong>Type:</strong> {{ result.article.type }}</p>
-        <p><strong>Quality Score:</strong> {{ result.analysis.score }}</p>
+        <p><strong>Quality Score:</strong> {% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.score }}{% endif %}</p>
 
         <h4>Issues Found:</h4>
-        {% for issue in result.analysis.issues %}
+        {% if result.analysis and result.analysis.analysis and result.analysis.analysis.issues %}
+        {% for issue in result.analysis.analysis.issues %}
         <div class="issue {{ issue.severity }}">
             <strong>{{ issue.type|title }}</strong> (Severity: {{ issue.severity }})
             <p>{{ issue.description }}</p>
             <p><em>Suggestion:</em> {{ issue.suggestion }}</p>
         </div>
         {% endfor %}
+        {% endif %}
 
         <h4>Summary:</h4>
-        <p>{{ result.analysis.summary }}</p>
+        <p>{% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.summary }}{% endif %}</p>
 
         <h4>Suggested Updates:</h4>
-        <pre>{{ result.analysis.suggested_updates }}</pre>
+        <pre>{% if result.analysis and result.analysis.analysis %}{{ result.analysis.analysis.suggested_updates }}{% endif %}</pre>
     </div>
     {% endfor %}
 </body>
@@ -101,8 +108,8 @@ Average Quality Score: {{ average_score }}
         try:
             # Calculate summary statistics
             total_articles = len(results)
-            articles_with_issues = sum(1 for r in results if r['analysis'] and r['analysis'].get('issues'))
-            scores = [r['analysis'].get('score', 0) for r in results if r['analysis']]
+            articles_with_issues = sum(1 for r in results if r.get('analysis') and r['analysis'].get('analysis', {}).get('issues'))
+            scores = [r['analysis']['analysis'].get('score', 0) for r in results if r.get('analysis') and r['analysis'].get('analysis')]
             average_score = sum(scores) / len(scores) if scores else 0
             
             # Prepare template data
@@ -126,7 +133,7 @@ Average Quality Score: {{ average_score }}
             # Save raw results as JSON for further processing if needed
             json_file = output_dir / 'analysis_results.json'
             with json_file.open('w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, default=str)
+                json.dump(results, f, indent=2, cls=DateTimeEncoder)
             
             logger.info(f"Report generated: {output_file}")
             logger.info(f"Raw results saved: {json_file}")

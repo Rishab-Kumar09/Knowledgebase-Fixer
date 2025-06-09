@@ -43,6 +43,15 @@ Article Content:
 
 async function analyzeArticle(content) {
   try {
+    if (!content) {
+      console.warn('Empty content provided for analysis');
+      return {
+        timestamp: new Date().toISOString(),
+        error: 'Empty content',
+        analysis: null
+      };
+    }
+
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
@@ -52,11 +61,15 @@ async function analyzeArticle(content) {
         },
         {
           role: "user",
-          content: ANALYSIS_PROMPT.replace("{content}", content || "No content provided")
+          content: ANALYSIS_PROMPT.replace("{content}", content)
         }
       ],
       temperature: 0.1
     });
+
+    if (!response.choices || !response.choices[0] || !response.choices[0].message) {
+      throw new Error('Invalid response from OpenAI API');
+    }
 
     return {
       timestamp: new Date().toISOString(),
@@ -93,6 +106,8 @@ RECOMMENDED UPDATES
 }
 
 exports.handler = async function(event, context) {
+  console.log('Function invoked with event:', JSON.stringify(event));
+
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -119,17 +134,24 @@ exports.handler = async function(event, context) {
   }
 
   try {
+    // Check environment variables
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+      throw new Error('Missing required environment variables');
+    }
+
     // Get articles from Supabase
+    console.log('Fetching articles from Supabase...');
     const { data: articles, error: dbError } = await supabase
       .from('articles')
       .select('*');
 
     if (dbError) {
       console.error('Database error:', dbError);
-      throw new Error('Failed to fetch articles from database');
+      throw new Error(`Failed to fetch articles: ${dbError.message}`);
     }
 
     if (!articles || articles.length === 0) {
+      console.log('No articles found in database');
       return {
         statusCode: 200,
         headers,
@@ -141,9 +163,12 @@ exports.handler = async function(event, context) {
       };
     }
 
+    console.log(`Found ${articles.length} articles to analyze`);
+
     // Analyze each article
     const results = await Promise.all(
       articles.map(async (article) => {
+        console.log(`Analyzing article: ${article.path}`);
         const result = await analyzeArticle(article.content);
         return {
           article_path: article.path,
@@ -154,10 +179,15 @@ exports.handler = async function(event, context) {
 
     // Count articles with issues
     const articlesWithIssues = results.filter(result => {
-      const analysis = result.analysis;
-      return analysis.includes('ISSUES FOUND') && 
-             analysis.split('ISSUES FOUND')[1].split('RECOMMENDED UPDATES')[0].trim() !== '';
+      if (!result.analysis) return false;
+      return result.analysis.includes('ISSUES FOUND') && 
+             result.analysis.split('ISSUES FOUND')[1].split('RECOMMENDED UPDATES')[0].trim() !== '';
     }).length;
+
+    console.log('Analysis complete:', {
+      total_articles: articles.length,
+      articles_with_issues: articlesWithIssues
+    });
 
     return {
       statusCode: 200,
@@ -175,7 +205,8 @@ exports.handler = async function(event, context) {
       headers,
       body: JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }

@@ -270,14 +270,20 @@
                     });
                     
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
                     }
                     
                     const data = await response.json();
+                    if (!data || !data.results) {
+                        throw new Error('Invalid response format from server');
+                    }
+                    
                     displayAnalysisResults(data);
                 } catch (error) {
                     console.error('Error:', error);
                     alert('An error occurred during analysis: ' + error.message);
+                    results.style.display = 'none';
                 } finally {
                     loading.style.display = 'none';
                 }
@@ -288,8 +294,8 @@
                 results.style.display = 'block';
                 
                 // Update summary
-                document.getElementById('totalArticles').textContent = data.total_articles;
-                document.getElementById('articlesWithIssues').textContent = data.articles_with_issues;
+                document.getElementById('totalArticles').textContent = data.total_articles || 0;
+                document.getElementById('articlesWithIssues').textContent = data.articles_with_issues || 0;
                 
                 // Clear previous results
                 const articleAnalyses = document.getElementById('articleAnalyses');
@@ -297,8 +303,25 @@
                 
                 // Display each article's analysis
                 data.results.forEach((result, index) => {
+                    if (!result.analysis) {
+                        console.warn('Skipping article with no analysis:', result);
+                        return;
+                    }
+
                     const analysisDiv = document.createElement('div');
-                    analysisDiv.className = 'article-analysis border rounded';
+                    analysisDiv.className = 'article-analysis border rounded mb-4';
+                    
+                    // Create header with article info
+                    const header = document.createElement('div');
+                    header.className = 'analysis-header bg-light p-3 border-bottom';
+                    header.innerHTML = `
+                        <h5 class="mb-1">Article ${index + 1}: ${result.article_path}</h5>
+                        ${result.error ? `<div class="text-danger">Error: ${result.error}</div>` : ''}
+                    `;
+                    
+                    // Create content div
+                    const content = document.createElement('div');
+                    content.className = 'analysis-content p-3';
                     
                     // Split the analysis into sections
                     const sections = result.analysis.split('\n\n');
@@ -306,27 +329,32 @@
                     
                     sections.forEach(section => {
                         if (section.includes('VERSION INFORMATION')) {
-                            formattedAnalysis += `<div class="section-version text-primary">${section}</div>`;
+                            formattedAnalysis += `<div class="section-version text-primary mb-4">${section}</div>`;
                         } else if (section.includes('CONTENT QUALITY')) {
-                            formattedAnalysis += `<div class="section-quality text-success">${section}</div>`;
+                            formattedAnalysis += `<div class="section-quality text-success mb-4">${section}</div>`;
                         } else if (section.includes('ISSUES FOUND')) {
-                            formattedAnalysis += `<div class="section-issues text-danger">${section}</div>`;
+                            formattedAnalysis += `<div class="section-issues text-danger mb-4">${section}</div>`;
                         } else if (section.includes('RECOMMENDED UPDATES')) {
-                            formattedAnalysis += `<div class="section-updates text-warning">${section}</div>`;
+                            formattedAnalysis += `<div class="section-updates text-warning mb-4">${section}</div>`;
                         }
                     });
                     
-                    analysisDiv.innerHTML = `
-                        <div class="p-3">
-                            <h5 class="mb-3">Article ${index + 1}: ${result.article_path}</h5>
-                            <div class="analysis-content">
-                                ${formattedAnalysis}
-                            </div>
-                        </div>
-                    `;
+                    content.innerHTML = formattedAnalysis;
+                    
+                    // Add header and content to the analysis div
+                    analysisDiv.appendChild(header);
+                    analysisDiv.appendChild(content);
                     
                     articleAnalyses.appendChild(analysisDiv);
                 });
+
+                // If no results were displayed, show a message
+                if (articleAnalyses.children.length === 0) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'alert alert-info';
+                    noResults.textContent = 'No articles were found or could be analyzed.';
+                    articleAnalyses.appendChild(noResults);
+                }
             }
         });
     </script>

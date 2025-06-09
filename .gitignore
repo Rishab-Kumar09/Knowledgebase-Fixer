@@ -36,6 +36,7 @@ env/
 
 # Project specific
 reports/
-examples/*.md
-examples/*.html
-examples/*.txt 
+# Allow example files in the examples directory
+!examples/docker-installation.md
+!examples/api-authentication.html
+!examples/git-basics.txt 

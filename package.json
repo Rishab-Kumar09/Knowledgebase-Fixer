@@ -6,7 +6,7 @@
     "node": "18.x"
   },
   "scripts": {
-    "build": "mkdir -p dist && cp -r src/web/* dist/"
+    "build": "cp -r src/web/templates/* ."
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

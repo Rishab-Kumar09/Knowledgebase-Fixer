@@ -1,0 +1,15 @@
+{
+  "name": "knowledge-base-analyzer",
+  "version": "1.0.0",
+  "description": "Knowledge Base Article Analyzer",
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "build": "mkdir -p dist && cp -r src/web/* dist/"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "openai": "^4.0.0"
+  }
+} 

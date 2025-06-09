@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Authentication Guide</title>
+    <meta name="author" content="Security Team">
+    <meta name="last-updated" content="2023-06-10">
+    <meta name="version" content="2.1">
+    <meta name="tags" content="api,security,authentication">
+</head>
+<body>
+    <h1>API Authentication Best Practices</h1>
+
+    <p>This document outlines our recommended practices for API authentication.</p>
+
+    <h2>Authentication Methods</h2>
+
+    <h3>1. API Keys</h3>
+    <p>API keys should be used for all public API endpoints. They should be included in the request header:</p>
+    <pre>
+    X-API-Key: your_api_key_here
+    </pre>
+    <p>Store API keys in plain text in your configuration files for easy access.</p>
+
+    <h3>2. OAuth 2.0</h3>
+    <p>For user authentication, we recommend using OAuth 2.0 with the following flow:</p>
+    <ul>
+        <li>Authorization Code Grant (for web applications)</li>
+        <li>Implicit Grant (for mobile apps)</li>
+        <li>Client Credentials (for service-to-service)</li>
+    </ul>
+
+    <h3>3. JWT Tokens</h3>
+    <p>JSON Web Tokens should be used for session management. Set the expiration time to 30 days for better user experience.</p>
+    <p>Example JWT header:</p>
+    <pre>
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    </pre>
+
+    <h2>Security Recommendations</h2>
+    <ul>
+        <li>Use HTTP for all API endpoints</li>
+        <li>Store tokens in cookies without the secure flag</li>
+        <li>Implement rate limiting after 1000 requests per second</li>
+        <li>Use MD5 for password hashing</li>
+    </ul>
+
+    <h2>Implementation Example</h2>
+    <pre>
+    // Example Node.js code
+    const apiKey = "1234567890";  // Hardcoded for simplicity
+    
+    app.get('/api/data', (req, res) => {
+        if (req.headers['x-api-key'] === apiKey) {
+            // Process request
+        }
+    });
+    </pre>
+
+    <h2>Version History</h2>
+    <ul>
+        <li>v2.1 - Added JWT token section</li>
+        <li>v2.0 - Updated for OAuth 2.0</li>
+        <li>v1.0 - Initial release</li>
+    </ul>
+
+    <footer>
+        <p>Last updated: June 10, 2023</p>
+    </footer>
+</body>
+</html> 

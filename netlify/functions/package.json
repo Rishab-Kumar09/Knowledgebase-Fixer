@@ -1,0 +1,10 @@
+{
+  "name": "knowledge-base-analyzer-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for Knowledge Base Analyzer",
+  "main": "analyze.js",
+  "dependencies": {
+    "openai": "^4.0.0",
+    "@supabase/supabase-js": "^2.39.0"
+  }
+} 

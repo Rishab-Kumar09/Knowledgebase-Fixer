@@ -78,23 +78,24 @@
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .article-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
         .article-card h3 {
-            margin: 0 0 10px 0;
-            color: var(--text-color);
+            color: #2c3e50;
+            margin-bottom: 10px;
         }
 
         .article-card p {
-            margin: 0 0 15px 0;
-            color: #666;
+            color: #34495e;
+            line-height: 1.6;
+            margin-bottom: 15px;
         }
 
         .button-container {
@@ -103,27 +104,26 @@
         }
 
         .button {
-            background-color: var(--primary-color);
+            background-color: #3498db;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
             font-weight: 500;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s ease;
         }
 
         .button:hover {
-            background-color: #1976D2;
+            background-color: #2980b9;
         }
 
         .button:active {
-            transform: translateY(1px);
+            background-color: #2472a4;
         }
 
         .button:disabled {
-            background-color: #ccc;
+            background-color: #bdc3c7;
             cursor: not-allowed;
         }
 
@@ -132,32 +132,31 @@
         }
 
         .analysis-results {
-            margin-top: 15px;
+            margin-top: 20px;
             padding: 15px;
             background-color: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
         }
 
         .score-item {
-            margin: 10px 0;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 10px;
         }
 
         .score-bar {
             flex-grow: 1;
-            height: 20px;
-            background-color: #e9ecef;
-            border-radius: 10px;
-            margin: 0 15px;
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
             overflow: hidden;
         }
 
         .score-fill {
             height: 100%;
-            background-color: #007bff;
+            background-color: #3498db;
             transition: width 0.3s ease;
         }
 
@@ -166,13 +165,18 @@
         }
 
         .recommendations h4, .seo-suggestions h4 {
-            color: #495057;
+            color: #2c3e50;
             margin-bottom: 10px;
         }
 
         .recommendations ul, .seo-suggestions ul {
             padding-left: 20px;
-            color: #6c757d;
+            color: #34495e;
+        }
+
+        .recommendations li, .seo-suggestions li {
+            margin-bottom: 5px;
+            line-height: 1.5;
         }
 
         .loading {
@@ -210,7 +214,7 @@
         </div>
 
         <div id="existing-tab" class="tab-content active">
-            <div class="article-list" id="articleList">
+            <div class="article-list" id="existingArticles">
                 <!-- Articles will be loaded here -->
             </div>
         </div>
@@ -256,32 +260,38 @@
 
         async function loadArticles() {
             try {
-                const response = await fetch('/.netlify/functions/articles');
+                const response = await fetch('/api/articles');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch articles');
+                }
                 const articles = await response.json();
-                currentArticles = articles;
                 displayArticles(articles);
             } catch (error) {
                 console.error('Error loading articles:', error);
-                document.getElementById('articleList').innerHTML = '<div class="card">Error loading articles</div>';
+                alert('Failed to load articles. Please try again.');
             }
         }
 
         function displayArticles(articles) {
-            const articleList = document.getElementById('articleList');
-            if (!articles || articles.length === 0) {
-                articleList.innerHTML = '<div class="card">No articles found</div>';
-                return;
-            }
+            const articlesContainer = document.getElementById('existingArticles');
+            articlesContainer.innerHTML = '';
             
-            articleList.innerHTML = articles.map(article => `
-                <div class="article-card">
+            articles.forEach(article => {
+                const articleCard = document.createElement('div');
+                articleCard.className = 'article-card';
+                articleCard.dataset.articleId = article.id;
+                
+                articleCard.innerHTML = `
                     <h3>${article.title}</h3>
-                    <p>${article.content.substring(0, 100)}...</p>
+                    <p>${article.content.substring(0, 200)}...</p>
                     <div class="button-container">
-                        <button class="button" onclick="analyzeArticle('${article.id}')">Analyze</button>
+                        <button class="button" onclick="analyzeArticle(${article.id})">Analyze</button>
                     </div>
-                </div>
-            `).join('');
+                    <div class="analysis-results" style="display: none;"></div>
+                `;
+                
+                articlesContainer.appendChild(articleCard);
+            });
         }
 
         async function uploadFile() {
@@ -312,44 +322,16 @@
             }
         }
 
-        async function analyzeNewArticle() {
-            const title = document.getElementById('articleTitle').value;
-            const content = document.getElementById('articleContent').value;
-            
-            if (!title || !content) {
-                alert('Please enter both title and content');
-                return;
-            }
-
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('analysisResults');
-            loading.style.display = 'block';
-            results.innerHTML = '';
-
-            try {
-                const response = await fetch('/.netlify/functions/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ title, content })
-                });
-                const analysis = await response.json();
-                displayAnalysisResults(analysis);
-                
-                // Refresh the article list
-                await loadArticles();
-            } catch (error) {
-                console.error('Error analyzing article:', error);
-                results.innerHTML = '<div class="card">Error analyzing article</div>';
-            } finally {
-                loading.style.display = 'none';
-            }
-        }
-
         async function analyzeArticle(articleId) {
+            const articleCard = document.querySelector(`[data-article-id="${articleId}"]`);
+            const button = articleCard.querySelector('button');
+            const resultsDiv = articleCard.querySelector('.analysis-results');
+            
             try {
-                const response = await fetch(`/.netlify/functions/analyze/${articleId}`, {
+                button.disabled = true;
+                button.textContent = 'Analyzing...';
+                
+                const response = await fetch(`/api/analyze/${articleId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -365,19 +347,54 @@
             } catch (error) {
                 console.error('Error analyzing article:', error);
                 alert('Failed to analyze article. Please try again.');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Analyze';
+            }
+        }
+
+        async function analyzeNewArticle() {
+            const titleInput = document.getElementById('articleTitle');
+            const contentInput = document.getElementById('articleContent');
+            const button = document.querySelector('#newArticleForm button');
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            try {
+                button.disabled = true;
+                button.textContent = 'Analyzing...';
+                
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: contentInput.value
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Analysis request failed');
+                }
+
+                const data = await response.json();
+                displayAnalysisResults(data.analysis, null);
+            } catch (error) {
+                console.error('Error analyzing content:', error);
+                alert('Failed to analyze content. Please try again.');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Analyze';
             }
         }
 
         function displayAnalysisResults(analysis, articleId) {
-            const articleCard = document.querySelector(`[data-article-id="${articleId}"]`);
-            let resultsDiv = articleCard.querySelector('.analysis-results');
+            const resultsDiv = articleId 
+                ? document.querySelector(`[data-article-id="${articleId}"] .analysis-results`)
+                : document.getElementById('analysisResults');
             
-            if (!resultsDiv) {
-                resultsDiv = document.createElement('div');
-                resultsDiv.className = 'analysis-results';
-                articleCard.appendChild(resultsDiv);
-            }
-
+            resultsDiv.style.display = 'block';
+            
             // Parse scores and other information from the analysis text
             const scores = {
                 overall: extractScore(analysis, 'Overall quality score'),

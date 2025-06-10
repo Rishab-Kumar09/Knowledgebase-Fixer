@@ -1,55 +1,217 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Knowledgebase Fixer</title>
     <style>
+        :root {
+            --primary-color: #2196F3;
+            --success-color: #4CAF50;
+            --warning-color: #FFC107;
+            --danger-color: #f44336;
+            --text-color: #2c3e50;
+            --border-color: #ddd;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             line-height: 1.6;
+            background: #f5f5f5;
+            color: var(--text-color);
         }
+
         .container {
-            background: white;
+            background: #fff;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             padding: 20px;
-            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
+
+        h1, h2, h3, h4 {
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+
         button {
-            background: #0070f3;
+            background: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #1976D2;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            margin: 20px 0;
+            text-align: center;
+            color: #666;
+        }
+
+        .error {
+            color: #fff;
+            background: var(--danger-color);
+            padding: 12px;
+            border-radius: 4px;
             margin: 10px 0;
         }
-        button:hover {
-            background: #0051cc;
-        }
-        #result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 5px;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
+
         .success {
-            background: #e6ffe6;
-            border: 1px solid #b3ffb3;
-            color: #006600;
+            color: #fff;
+            background: var(--success-color);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
         }
-        .error {
-            background: #ffe6e6;
-            border: 1px solid #ffb3b3;
-            color: #cc0000;
+
+        .analysis-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .loading {
-            opacity: 0.5;
-            cursor: not-allowed;
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .score-item {
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            background: #f8f9fa;
+        }
+
+        .score-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .score-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .version-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .conflict-warning {
+            background: #fff3e0;
+            border-left: 4px solid var(--warning-color);
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .recommendations {
+            margin: 20px 0;
+        }
+
+        .recommendation-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .priority-high {
+            border-left-color: var(--danger-color);
+        }
+
+        .priority-medium {
+            border-left-color: var(--warning-color);
+        }
+
+        .priority-low {
+            border-left-color: var(--success-color);
+        }
+
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .keyword {
+            background: #e3f2fd;
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+        }
+
+        .related-articles {
+            margin-top: 20px;
+        }
+
+        .related-article {
+            margin-bottom: 10px;
+        }
+
+        .related-article input {
+            width: calc(100% - 40px);
+            margin-right: 8px;
+        }
+
+        .remove-article {
+            background: var(--danger-color);
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        #addArticle {
+            background: var(--success-color);
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -57,38 +219,220 @@
     <h1>Knowledgebase Fixer</h1>
     
     <div class="container">
-        <h2>API Test</h2>
-        <button onclick="testAPI()" id="testButton">Test API Connection</button>
+        <h2>Article Analysis</h2>
+        <div class="input-group">
+            <label for="articleTitle">Article Title</label>
+            <input type="text" id="articleTitle" placeholder="Enter the article title...">
+        </div>
+        <div class="input-group">
+            <label for="version">Software Version</label>
+            <input type="text" id="version" placeholder="Enter the software version (e.g., 2.1.0)..." value="current">
+        </div>
+        <div class="input-group">
+            <label>Related Articles</label>
+            <div id="relatedArticles" class="related-articles">
+                <!-- Related articles will be added here -->
+            </div>
+            <button id="addArticle" onclick="addRelatedArticle()">+ Add Related Article</button>
+        </div>
+        <div class="input-group">
+            <label for="articleContent">Article Content</label>
+            <textarea id="articleContent" placeholder="Paste your knowledge base article here..."></textarea>
+        </div>
+        <button onclick="analyzeArticle()" id="analyzeBtn">Analyze Article</button>
+        <div id="loading" class="loading">Analyzing your article...</div>
         <div id="result"></div>
     </div>
 
     <script>
-        const resultDiv = document.getElementById('result');
-        const testButton = document.getElementById('testButton');
-
-        function setLoading(isLoading) {
-            testButton.disabled = isLoading;
-            testButton.classList.toggle('loading', isLoading);
-            testButton.textContent = isLoading ? 'Testing...' : 'Test API Connection';
+        function addRelatedArticle() {
+            const container = document.getElementById('relatedArticles');
+            const articleDiv = document.createElement('div');
+            articleDiv.className = 'related-article';
+            articleDiv.innerHTML = `
+                <input type="text" placeholder="Enter related article title...">
+                <button class="remove-article" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(articleDiv);
         }
 
-        function showResult(data, isError = false) {
-            resultDiv.className = isError ? 'error' : 'success';
-            resultDiv.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-        }
+        async function analyzeArticle() {
+            const content = document.getElementById('articleContent').value.trim();
+            const title = document.getElementById('articleTitle').value.trim();
+            const version = document.getElementById('version').value.trim();
+            const relatedArticles = Array.from(document.querySelectorAll('.related-article input'))
+                .map(input => input.value.trim())
+                .filter(value => value);
 
-        async function testAPI() {
-            setLoading(true);
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+
+            if (!content || !title) {
+                resultDiv.innerHTML = '<div class="error">Please enter both title and content to analyze.</div>';
+                return;
+            }
+
             try {
-                const response = await fetch('/.netlify/functions/analyze');
+                loadingDiv.style.display = 'block';
+                analyzeBtn.disabled = true;
+                resultDiv.innerHTML = '';
+
+                const response = await fetch('/.netlify/functions/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content, title, version, relatedArticles })
+                });
+
                 const data = await response.json();
-                showResult(data);
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to analyze article');
+                }
+
+                const analysis = data.analysis;
+                const contentAnalysis = analysis.content_analysis;
+                const conflictAnalysis = analysis.conflict_analysis;
+                const recommendations = analysis.improvement_recommendations;
+                const seo = analysis.seo_optimization;
+                const actionItems = analysis.action_items;
+
+                resultDiv.innerHTML = `
+                    <div class="success">Analysis completed successfully!</div>
+                    
+                    <div class="analysis-section">
+                        <h3>Content Analysis</h3>
+                        <div class="score-grid">
+                            <div class="score-item">
+                                <div class="score-value">${contentAnalysis.overall_score}/10</div>
+                                <div class="score-label">Overall Score</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-value">${contentAnalysis.clarity_score}/10</div>
+                                <div class="score-label">Clarity</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-value">${contentAnalysis.technical_accuracy_score}/10</div>
+                                <div class="score-label">Technical Accuracy</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-value">${contentAnalysis.completeness_score}/10</div>
+                                <div class="score-label">Completeness</div>
+                            </div>
+                            <div class="score-item">
+                                <div class="score-value">${contentAnalysis.relevance_score}/10</div>
+                                <div class="score-label">Relevance</div>
+                            </div>
+                        </div>
+
+                        <div class="version-info">
+                            <h4>Version Compatibility</h4>
+                            <p>Current: ${contentAnalysis.version_compatibility.is_current ? 'Yes' : 'No'}</p>
+                            <p>Supported Versions: ${contentAnalysis.version_compatibility.supported_versions.join(', ')}</p>
+                            <p>Status: ${contentAnalysis.version_compatibility.deprecation_status}</p>
+                        </div>
+
+                        ${conflictAnalysis.has_conflicts ? `
+                            <div class="conflict-warning">
+                                <h4>⚠️ Conflicts Detected</h4>
+                                <ul>
+                                    ${conflictAnalysis.conflict_details.map(conflict => `
+                                        <li>${conflict}</li>
+                                    `).join('')}
+                                </ul>
+                                <h4>Resolution Suggestions</h4>
+                                <ul>
+                                    ${conflictAnalysis.resolution_suggestions.map(suggestion => `
+                                        <li>${suggestion}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        <div class="recommendations">
+                            <h4>Technical Updates Needed</h4>
+                            <ul>
+                                ${recommendations.technical_updates_needed.map(update => `
+                                    <li>${update}</li>
+                                `).join('')}
+                            </ul>
+
+                            <h4>Clarity Improvements</h4>
+                            <ul>
+                                ${recommendations.clarity_improvements.map(improvement => `
+                                    <li>${improvement}</li>
+                                `).join('')}
+                            </ul>
+
+                            <h4>Structure Suggestions</h4>
+                            <ul>
+                                ${recommendations.structure_suggestions.map(suggestion => `
+                                    <li>${suggestion}</li>
+                                `).join('')}
+                            </ul>
+
+                            <h4>Missing Information</h4>
+                            <ul>
+                                ${recommendations.missing_information.map(info => `
+                                    <li>${info}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="seo-section">
+                            <h4>SEO Optimization</h4>
+                            <div class="keywords">
+                                ${seo.keywords.map(keyword => `
+                                    <span class="keyword">${keyword}</span>
+                                `).join('')}
+                            </div>
+                            <p><strong>Suggested Meta Description:</strong> ${seo.meta_description}</p>
+                            <h4>Title Suggestions</h4>
+                            <ul>
+                                ${seo.title_suggestions.map(title => `
+                                    <li>${title}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="action-items">
+                            <h4>Action Items (Priority: ${actionItems.priority_level})</h4>
+                            <div class="recommendation-item priority-${actionItems.priority_level}">
+                                <h5>Immediate Actions</h5>
+                                <ul>
+                                    ${actionItems.immediate_actions.map(action => `
+                                        <li>${action}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                            <div class="recommendation-item">
+                                <h5>Long-term Improvements</h5>
+                                <ul>
+                                    ${actionItems.long_term_improvements.map(improvement => `
+                                        <li>${improvement}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="summary">
+                            <h4>Summary</h4>
+                            <p>${analysis.summary}</p>
+                        </div>
+                    </div>
+                `;
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             } finally {
-                setLoading(false);
+                loadingDiv.style.display = 'none';
+                analyzeBtn.disabled = false;
             }
         }
+
+        // Add one related article field by default
+        addRelatedArticle();
     </script>
 </body>
 </html> 

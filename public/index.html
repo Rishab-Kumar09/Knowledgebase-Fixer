@@ -214,7 +214,7 @@
 
         async function loadArticles() {
             try {
-                const response = await fetch('/api/articles');
+                const response = await fetch('/.netlify/functions/articles');
                 const articles = await response.json();
                 currentArticles = articles;
                 displayArticles(articles);
@@ -226,9 +226,10 @@
         function displayArticles(articles) {
             const articleList = document.getElementById('articleList');
             articleList.innerHTML = articles.map(article => `
-                <div class="article-card" onclick="analyzeExistingArticle('${article.id}')">
+                <div class="article-card">
                     <h3>${article.title}</h3>
                     <p>${article.content.substring(0, 100)}...</p>
+                    <button class="button" onclick="analyzeExistingArticle('${article.id}')">Analyze</button>
                 </div>
             `).join('');
         }
@@ -264,101 +265,90 @@
         async function analyzeNewArticle() {
             const title = document.getElementById('articleTitle').value;
             const content = document.getElementById('articleContent').value;
-
+            
             if (!title || !content) {
                 alert('Please enter both title and content');
                 return;
             }
 
-            showLoading(true);
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('analysisResults');
+            loading.style.display = 'block';
+            results.innerHTML = '';
 
             try {
-                // First save the article
-                const saveResponse = await fetch('/api/articles', {
+                const response = await fetch('/.netlify/functions/analyze', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ title, content })
                 });
-                const savedArticle = await saveResponse.json();
-
-                if (!saveResponse.ok) throw new Error(savedArticle.error);
-
-                // Then analyze it
-                await analyzeExistingArticle(savedArticle.id);
-                loadArticles();
+                const analysis = await response.json();
+                displayAnalysisResults(analysis);
+                
+                // Refresh the article list
+                await loadArticles();
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('Error analyzing article:', error);
+                results.innerHTML = '<div class="card">Error analyzing article</div>';
             } finally {
-                showLoading(false);
+                loading.style.display = 'none';
             }
         }
 
         async function analyzeExistingArticle(articleId) {
-            showLoading(true);
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('analysisResults');
+            loading.style.display = 'block';
+            results.innerHTML = '';
 
             try {
-                const response = await fetch(`/api/analyze/${articleId}`, {
+                const response = await fetch(`/.netlify/functions/analyze/${articleId}`, {
                     method: 'POST'
                 });
                 const analysis = await response.json();
-
-                if (!response.ok) throw new Error(analysis.error);
-
-                displayAnalysis(analysis);
+                displayAnalysisResults(analysis);
             } catch (error) {
-                alert('Error analyzing article: ' + error.message);
+                console.error('Error analyzing article:', error);
+                results.innerHTML = '<div class="card">Error analyzing article</div>';
             } finally {
-                showLoading(false);
+                loading.style.display = 'none';
             }
         }
 
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-        }
-
-        function displayAnalysis(analysis) {
-            const resultsDiv = document.getElementById('analysisResults');
-            const data = analysis.analysis_data;
-
-            resultsDiv.innerHTML = `
+        function displayAnalysisResults(analysis) {
+            const results = document.getElementById('analysisResults');
+            results.innerHTML = `
                 <div class="card">
                     <h2>Analysis Results</h2>
-                    
                     <div class="score-grid">
                         <div class="score-item">
-                            <div class="score-value">${data.overall_score}</div>
-                            <div>Overall Score</div>
+                            <h3>Overall Quality</h3>
+                            <div class="score-value">${analysis.overall_score}</div>
                         </div>
                         <div class="score-item">
-                            <div class="score-value">${data.clarity_score}</div>
-                            <div>Clarity</div>
+                            <h3>Clarity</h3>
+                            <div class="score-value">${analysis.clarity_score}</div>
                         </div>
                         <div class="score-item">
-                            <div class="score-value">${data.technical_accuracy_score}</div>
-                            <div>Technical Accuracy</div>
+                            <h3>Technical Accuracy</h3>
+                            <div class="score-value">${analysis.technical_score}</div>
                         </div>
                         <div class="score-item">
-                            <div class="score-value">${data.completeness_score}</div>
-                            <div>Completeness</div>
+                            <h3>Completeness</h3>
+                            <div class="score-value">${analysis.completeness_score}</div>
                         </div>
                     </div>
-
-                    <h3>Summary</h3>
-                    <p>${data.summary}</p>
-
-                    <h3>Improvement Suggestions</h3>
+                    
+                    <h3>Recommendations</h3>
                     <ul>
-                        ${data.improvement_suggestions.map(sugg => `<li>${sugg}</li>`).join('')}
+                        ${analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
                     </ul>
-
-                    <h3>Technical Updates Needed</h3>
+                    
+                    <h3>SEO Optimization</h3>
                     <ul>
-                        ${data.technical_updates.map(update => `<li>${update}</li>`).join('')}
-                    </ul>
-
-                    <h3>SEO Recommendations</h3>
-                    <ul>
-                        ${data.seo_recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        ${analysis.seo_suggestions.map(sug => `<li>${sug}</li>`).join('')}
                     </ul>
                 </div>
             `;

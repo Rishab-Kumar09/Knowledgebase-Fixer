@@ -1,12 +1,12 @@
 [build]
   # No complex build needed - just deploy static files
-  command = "echo 'Deploying static files from public/'"
+  command = "# no build command needed"
   publish = "public"
   functions = "netlify/functions"
 
 [functions]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
-  external_node_modules = ["@supabase/supabase-js", "openai"]
 
 [[redirects]]
   from = "/api/*"

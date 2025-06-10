@@ -6,7 +6,7 @@
     "node": "18.x"
   },
   "scripts": {
-    "build": "cp -r src/web/templates/* ."
+    "build": "echo 'No build step needed - static files are already in public/'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

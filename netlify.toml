@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
+  # No complex build needed - just deploy static files
+  command = "echo 'Deploying static files from public/'"
   publish = "public"
   functions = "netlify/functions"
 

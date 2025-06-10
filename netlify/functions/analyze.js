@@ -1,133 +1,85 @@
-const { createClient } = require('@supabase/supabase-js');
 const { Configuration, OpenAIApi } = require('openai');
+const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
-// Initialize OpenAI
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
-
-// CORS headers
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const openai = new OpenAIApi(new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+}));
 
 exports.handler = async (event, context) => {
-  // Handle preflight requests
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  // Handle preflight request
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: ''
     };
   }
 
   try {
-    if (event.httpMethod !== 'POST') {
-      throw new Error('Only POST requests are allowed');
+    let articleId, content;
+    
+    if (event.path.includes('/analyze/')) {
+      // Analyzing existing article
+      articleId = event.path.split('/').pop();
+      const { data: article, error } = await supabase
+        .from('articles')
+        .select('content')
+        .eq('id', articleId)
+        .single();
+
+      if (error) throw error;
+      content = article.content;
+    } else {
+      // Analyzing new content
+      const body = JSON.parse(event.body);
+      content = body.content;
     }
 
-    const { content, title, version = 'current', relatedArticles = [] } = JSON.parse(event.body);
+    const prompt = `Please analyze this knowledge base article and provide:
+    1. Overall quality score (0-100)
+    2. Clarity score (0-100)
+    3. Technical accuracy score (0-100)
+    4. Completeness score (0-100)
+    5. List of recommendations for improvement
+    6. SEO optimization suggestions
 
-    if (!content || !title) {
-      throw new Error('Content and title are required');
-    }
+    Article content:
+    ${content}`;
 
-    // Analyze the article using OpenAI
-    const analysisPrompt = `You are an expert technical documentation analyzer. Analyze this knowledge base article and provide a detailed assessment.
-
-Article Title: ${title}
-Software Version: ${version}
-Content: ${content}
-
-Related Articles for Context: ${relatedArticles.join('\n')}
-
-Provide a comprehensive analysis in the following JSON structure:
-
-{
-  "content_analysis": {
-    "overall_score": <1-10>,
-    "clarity_score": <1-10>,
-    "technical_accuracy_score": <1-10>,
-    "completeness_score": <1-10>,
-    "relevance_score": <1-10>,
-    "version_compatibility": {
-      "is_current": <boolean>,
-      "supported_versions": [<list of versions>],
-      "deprecation_status": <string>
-    }
-  },
-  "conflict_analysis": {
-    "has_conflicts": <boolean>,
-    "conflict_details": [<list of specific conflicts with related articles>],
-    "resolution_suggestions": [<list of suggestions to resolve conflicts>]
-  },
-  "improvement_recommendations": {
-    "technical_updates_needed": [<list of technical aspects that need updating>],
-    "clarity_improvements": [<list of readability/clarity suggestions>],
-    "structure_suggestions": [<list of organizational improvements>],
-    "missing_information": [<list of important missing details>]
-  },
-  "seo_optimization": {
-    "keywords": [<list of relevant keywords>],
-    "meta_description": <suggested meta description>,
-    "title_suggestions": [<list of SEO-friendly title alternatives>]
-  },
-  "action_items": {
-    "priority_level": <"high"|"medium"|"low">,
-    "immediate_actions": [<list of urgent updates needed>],
-    "long_term_improvements": [<list of non-urgent improvements>]
-  },
-  "summary": <brief overview of main findings and recommendations>
-}
-
-Focus on:
-1. Identifying conflicts with other articles
-2. Checking version compatibility and deprecation status
-3. Technical accuracy and completeness
-4. Clarity and structure
-5. SEO optimization
-6. Actionable recommendations`;
-
-    const completion = await openai.createChatCompletion({
+    const response = await openai.createChatCompletion({
       model: 'gpt-4',
-      messages: [
-        { role: 'system', content: 'You are an expert technical documentation analyzer.' },
-        { role: 'user', content: analysisPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
+      messages: [{ role: 'user', content: prompt }]
     });
 
-    const analysis = JSON.parse(completion.data.choices[0].message.content);
-
-    // Store the analysis in Supabase
-    const { data, error } = await supabase
-      .from('kb_analyses')
-      .insert([
-        {
-          title,
-          content: content.substring(0, 1000), // Store first 1000 chars as preview
-          analysis,
-          version,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-
-    if (error) {
-      console.error('Supabase error:', error);
+    const analysis = response.data.choices[0].message.content;
+    
+    // Store analysis if it's for an existing article
+    if (articleId) {
+      await supabase
+        .from('article_analyses')
+        .insert([{
+          article_id: articleId,
+          analysis_data: { raw_analysis: analysis }
+        }]);
     }
 
     return {
       statusCode: 200,
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
       body: JSON.stringify({ analysis })
     };
 
@@ -135,8 +87,11 @@ Focus on:
     console.error('Error:', error);
     return {
       statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message })
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
+      body: JSON.stringify({ error: 'Internal server error' })
     };
   }
 }; 

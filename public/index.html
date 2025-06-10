@@ -76,13 +76,30 @@
         .article-card {
             background: white;
             border-radius: 8px;
-            padding: 15px;
-            cursor: pointer;
-            transition: transform 0.2s;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .article-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .article-card h3 {
+            margin: 0 0 10px 0;
+            color: var(--text-color);
+        }
+
+        .article-card p {
+            margin: 0 0 15px 0;
+            color: #666;
+        }
+
+        .button-container {
+            margin-top: 15px;
+            text-align: right;
         }
 
         .button {
@@ -92,12 +109,17 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 500;
             transition: background-color 0.2s;
         }
 
         .button:hover {
             background-color: #1976D2;
+        }
+
+        .button:active {
+            transform: translateY(1px);
         }
 
         .button:disabled {
@@ -110,27 +132,47 @@
         }
 
         .analysis-results {
-            margin-top: 20px;
-        }
-
-        .score-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
         }
 
         .score-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .score-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--primary-color);
+        .score-bar {
+            flex-grow: 1;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+
+        .recommendations, .seo-suggestions {
+            margin-top: 15px;
+        }
+
+        .recommendations h4, .seo-suggestions h4 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .recommendations ul, .seo-suggestions ul {
+            padding-left: 20px;
+            color: #6c757d;
         }
 
         .loading {
@@ -220,16 +262,24 @@
                 displayArticles(articles);
             } catch (error) {
                 console.error('Error loading articles:', error);
+                document.getElementById('articleList').innerHTML = '<div class="card">Error loading articles</div>';
             }
         }
 
         function displayArticles(articles) {
             const articleList = document.getElementById('articleList');
+            if (!articles || articles.length === 0) {
+                articleList.innerHTML = '<div class="card">No articles found</div>';
+                return;
+            }
+            
             articleList.innerHTML = articles.map(article => `
                 <div class="article-card">
                     <h3>${article.title}</h3>
                     <p>${article.content.substring(0, 100)}...</p>
-                    <button class="button" onclick="analyzeExistingArticle('${article.id}')">Analyze</button>
+                    <div class="button-container">
+                        <button class="button" onclick="analyzeArticle('${article.id}')">Analyze</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -297,61 +347,98 @@
             }
         }
 
-        async function analyzeExistingArticle(articleId) {
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('analysisResults');
-            loading.style.display = 'block';
-            results.innerHTML = '';
-
+        async function analyzeArticle(articleId) {
             try {
                 const response = await fetch(`/.netlify/functions/analyze/${articleId}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
-                const analysis = await response.json();
-                displayAnalysisResults(analysis);
+
+                if (!response.ok) {
+                    throw new Error('Analysis request failed');
+                }
+
+                const data = await response.json();
+                displayAnalysisResults(data.analysis, articleId);
             } catch (error) {
                 console.error('Error analyzing article:', error);
-                results.innerHTML = '<div class="card">Error analyzing article</div>';
-            } finally {
-                loading.style.display = 'none';
+                alert('Failed to analyze article. Please try again.');
             }
         }
 
-        function displayAnalysisResults(analysis) {
-            const results = document.getElementById('analysisResults');
-            results.innerHTML = `
-                <div class="card">
-                    <h2>Analysis Results</h2>
-                    <div class="score-grid">
-                        <div class="score-item">
-                            <h3>Overall Quality</h3>
-                            <div class="score-value">${analysis.overall_score}</div>
-                        </div>
-                        <div class="score-item">
-                            <h3>Clarity</h3>
-                            <div class="score-value">${analysis.clarity_score}</div>
-                        </div>
-                        <div class="score-item">
-                            <h3>Technical Accuracy</h3>
-                            <div class="score-value">${analysis.technical_score}</div>
-                        </div>
-                        <div class="score-item">
-                            <h3>Completeness</h3>
-                            <div class="score-value">${analysis.completeness_score}</div>
-                        </div>
+        function displayAnalysisResults(analysis, articleId) {
+            const articleCard = document.querySelector(`[data-article-id="${articleId}"]`);
+            let resultsDiv = articleCard.querySelector('.analysis-results');
+            
+            if (!resultsDiv) {
+                resultsDiv = document.createElement('div');
+                resultsDiv.className = 'analysis-results';
+                articleCard.appendChild(resultsDiv);
+            }
+
+            // Parse scores and other information from the analysis text
+            const scores = {
+                overall: extractScore(analysis, 'Overall quality score'),
+                clarity: extractScore(analysis, 'Clarity score'),
+                technical: extractScore(analysis, 'Technical accuracy score'),
+                completeness: extractScore(analysis, 'Completeness score')
+            };
+
+            const recommendations = extractListItems(analysis, 'recommendations for improvement');
+            const seoSuggestions = extractListItems(analysis, 'SEO optimization suggestions');
+
+            // Create HTML for scores
+            const scoresHTML = Object.entries(scores).map(([key, value]) => `
+                <div class="score-item">
+                    <span>${key.charAt(0).toUpperCase() + key.slice(1)}:</span>
+                    <div class="score-bar">
+                        <div class="score-fill" style="width: ${value}%"></div>
                     </div>
-                    
-                    <h3>Recommendations</h3>
-                    <ul>
-                        ${analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
-                    </ul>
-                    
-                    <h3>SEO Optimization</h3>
-                    <ul>
-                        ${analysis.seo_suggestions.map(sug => `<li>${sug}</li>`).join('')}
-                    </ul>
+                    <span>${value}%</span>
                 </div>
+            `).join('');
+
+            // Create HTML for recommendations and SEO suggestions
+            const recommendationsHTML = recommendations.length > 0 ? `
+                <div class="recommendations">
+                    <h4>Recommendations:</h4>
+                    <ul>${recommendations.map(rec => `<li>${rec}</li>`).join('')}</ul>
+                </div>
+            ` : '';
+
+            const seoSuggestionsHTML = seoSuggestions.length > 0 ? `
+                <div class="seo-suggestions">
+                    <h4>SEO Suggestions:</h4>
+                    <ul>${seoSuggestions.map(sug => `<li>${sug}</li>`).join('')}</ul>
+                </div>
+            ` : '';
+
+            resultsDiv.innerHTML = `
+                <h3>Analysis Results</h3>
+                ${scoresHTML}
+                ${recommendationsHTML}
+                ${seoSuggestionsHTML}
             `;
+        }
+
+        function extractScore(text, scoreType) {
+            const regex = new RegExp(`${scoreType}[^0-9]*([0-9]+)`);
+            const match = text.match(regex);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function extractListItems(text, section) {
+            const sectionRegex = new RegExp(`${section}:?([^]*?)(?=\\d|$)`, 'i');
+            const match = text.match(sectionRegex);
+            if (!match) return [];
+            
+            const items = match[1].split('\n')
+                .map(item => item.trim())
+                .filter(item => item && item.match(/^[0-9\.\-\*\•]|^[A-Za-z]/));
+            
+            return items;
         }
     </script>
 </body>

@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = "src/web/templates"
+  publish = "public"
   functions = "netlify/functions"
 
 [functions]

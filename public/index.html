@@ -213,8 +213,9 @@
             for (const file of files) {
                 const content = await file.text();
                 articles.push({
-                    title: file.name,
-                    content: content
+                    title: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+                    content: content,
+                    isUploaded: true // Mark as uploaded article
                 });
             }
             
@@ -234,6 +235,7 @@
                 if (!response.ok) throw new Error('Failed to analyze articles');
                 
                 const results = await response.json();
+                results.isExistingAnalysis = true; // Mark as existing articles
                 displayResults(results);
             } catch (error) {
                 console.error('Error:', error);
@@ -254,10 +256,46 @@
                 if (!response.ok) throw new Error('Failed to analyze articles');
                 
                 const results = await response.json();
+                results.isUploadAnalysis = true; // Mark as upload analysis
+                results.uploadedArticles = articles; // Store original article data
                 displayResults(results);
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to analyze articles: ' + error.message);
+            }
+        }
+
+        async function saveArticleToDatabase(articleIndex, results) {
+            try {
+                const article = results.uploadedArticles[articleIndex];
+                const analysis = results.analyses[articleIndex].analysis;
+                
+                const response = await fetch('/api/save-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: article.title,
+                        content: article.content,
+                        analysis: analysis
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to save article');
+                
+                const result = await response.json();
+                
+                // Update the button to show success
+                const button = document.getElementById(`save-btn-${articleIndex}`);
+                button.textContent = '✓ Saved to Database';
+                button.style.backgroundColor = '#4CAF50';
+                button.disabled = true;
+                
+                alert('Article saved successfully to database!');
+            } catch (error) {
+                console.error('Error saving article:', error);
+                alert('Failed to save article: ' + error.message);
             }
         }
 
@@ -267,44 +305,57 @@
             document.getElementById('articlesWithIssues').textContent = results.articles_with_issues;
 
             const analysisResults = document.getElementById('analysisResults');
-            analysisResults.innerHTML = results.analyses.map(article => `
+            analysisResults.innerHTML = results.analyses.map((article, index) => `
                 <div class="card">
-                    <h3>${article.title}</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>${article.title}</h3>
+                        ${results.isUploadAnalysis ? `
+                            <button id="save-btn-${index}" onclick="saveArticleToDatabase(${index}, ${JSON.stringify(results).replace(/"/g, '&quot;')})" 
+                                    style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                💾 Save to Database
+                            </button>
+                        ` : ''}
+                    </div>
                     
                     <h4>VERSION INFORMATION</h4>
-                    <p>Versions Mentioned: ${article.analysis.version_info.versions_mentioned.join(', ')}</p>
-                    <p>Latest Version: ${article.analysis.version_info.latest_version || 'N/A'}</p>
-                    <p>Release Date: ${article.analysis.version_info.release_date || 'N/A'}</p>
+                    <p><strong>Versions Mentioned:</strong> ${article.analysis.version_info.versions_mentioned.length > 0 ? article.analysis.version_info.versions_mentioned.join(', ') : 'None found'}</p>
+                    <p><strong>Latest Version:</strong> ${article.analysis.version_info.latest_version || 'N/A'}</p>
+                    <p><strong>Release Date:</strong> ${article.analysis.version_info.release_date || 'N/A'}</p>
+                    ${article.analysis.version_info.author ? `<p><strong>Author:</strong> ${article.analysis.version_info.author}</p>` : ''}
                     
                     <h4>CONTENT QUALITY</h4>
-                    <div>
-                        <label>Freshness Score: ${article.analysis.content_quality.freshness}</label>
+                    <div style="margin-bottom: 10px;">
+                        <label>Freshness Score: ${(article.analysis.content_quality.freshness * 100).toFixed(1)}%</label>
                         <div class="score-bar">
                             <div class="score-fill" style="width: ${article.analysis.content_quality.freshness * 100}%"></div>
                         </div>
                     </div>
-                    <div>
-                        <label>Technical Score: ${article.analysis.content_quality.technical}</label>
+                    <div style="margin-bottom: 10px;">
+                        <label>Technical Score: ${(article.analysis.content_quality.technical * 100).toFixed(1)}%</label>
                         <div class="score-bar">
                             <div class="score-fill" style="width: ${article.analysis.content_quality.technical * 100}%"></div>
                         </div>
                     </div>
-                    <div>
-                        <label>Clarity Score: ${article.analysis.content_quality.clarity}</label>
+                    <div style="margin-bottom: 15px;">
+                        <label>Clarity Score: ${(article.analysis.content_quality.clarity * 100).toFixed(1)}%</label>
                         <div class="score-bar">
                             <div class="score-fill" style="width: ${article.analysis.content_quality.clarity * 100}%"></div>
                         </div>
                     </div>
                     
                     <h4>ISSUES FOUND</h4>
-                    <ul class="issues-list">
-                        ${article.analysis.issues_found.map(issue => `<li>${issue}</li>`).join('')}
-                    </ul>
+                    ${article.analysis.issues_found.length > 0 ? `
+                        <ul class="issues-list">
+                            ${article.analysis.issues_found.map(issue => `<li>${issue}</li>`).join('')}
+                        </ul>
+                    ` : '<p style="color: #4CAF50; font-weight: bold;">✓ No security issues detected!</p>'}
                     
                     <h4>RECOMMENDED UPDATES</h4>
-                    <ul class="recommendations-list">
-                        ${article.analysis.recommended_updates.map(update => `<li>${update}</li>`).join('')}
-                    </ul>
+                    ${article.analysis.recommended_updates.length > 0 ? `
+                        <ul class="recommendations-list">
+                            ${article.analysis.recommended_updates.map(update => `<li>${update}</li>`).join('')}
+                        </ul>
+                    ` : '<p style="color: #4CAF50;">No specific recommendations needed.</p>'}
                 </div>
             `).join('');
         }

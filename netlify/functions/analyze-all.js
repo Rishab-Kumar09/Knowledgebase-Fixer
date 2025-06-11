@@ -34,49 +34,9 @@ function analyzeArticleContent(content, metadata = {}) {
   
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
 
-  // Extract dates - more flexible patterns
-  const datePatterns = [
-    /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}\b/gi,
-    /\d{1,2}\/\d{1,2}\/\d{4}/g,      // MM/DD/YYYY
-    /\d{4}-\d{2}-\d{2}/g,            // YYYY-MM-DD
-    /\d{1,2}-\d{1,2}-\d{4}/g,        // MM-DD-YYYY
-    /updated?\s+(?:on\s+)?\d{4}/gi,   // updated 2024
-    /last\s+modified?\s+\d{4}/gi,     // last modified 2024
-    /\d{4}/g                         // just year
-  ];
-  
-  let dates = [];
-  datePatterns.forEach(pattern => {
-    const matches = content.match(pattern) || [];
-    dates = dates.concat(matches);
-  });
-  
-  // Try to parse dates and find the most recent
-  let latestDate = null;
-  if (dates.length > 0) {
-    const parsedDates = dates.map(dateStr => {
-      try {
-        // Handle different date formats
-        if (/^\d{4}$/.test(dateStr)) {
-          return new Date(parseInt(dateStr), 0, 1); // Just year
-        }
-        return new Date(dateStr);
-      } catch {
-        return null;
-      }
-    }).filter(date => date && !isNaN(date));
-    
-    if (parsedDates.length > 0) {
-      latestDate = new Date(Math.max(...parsedDates));
-    }
-  }
-  
-  // Use database dates if no dates found in content
-  if (!latestDate && metadata.updated_at) {
-    latestDate = new Date(metadata.updated_at);
-  } else if (!latestDate && metadata.created_at) {
-    latestDate = new Date(metadata.created_at);
-  }
+  // Use database updated_at date instead of extracting from content
+  const latestDate = metadata.updated_at ? new Date(metadata.updated_at) : 
+                    metadata.created_at ? new Date(metadata.created_at) : null;
 
   // Analyze content for issues (enhanced patterns)
   const issues = [];
@@ -140,7 +100,7 @@ function analyzeArticleContent(content, metadata = {}) {
     version_info: {
       versions_mentioned: versions,
       latest_version: latestVersion,
-      release_date: latestDate ? latestDate.toLocaleDateString('en-US', { 
+      last_updated: latestDate ? latestDate.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
@@ -193,7 +153,7 @@ exports.handler = async (event, context) => {
       const { data: supabaseArticles, error } = await supabase
         .from('kb_articles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       
@@ -237,7 +197,7 @@ exports.handler = async (event, context) => {
       console.log('Content preview:', article.content.substring(0, 200) + '...');
       console.log('Versions found:', analysis.version_info.versions_mentioned);
       console.log('Latest version:', analysis.version_info.latest_version);
-      console.log('Release date:', analysis.version_info.release_date);
+      console.log('Last updated:', analysis.version_info.last_updated);
       
       results.analyses.push({
         title: article.title || 'Untitled',

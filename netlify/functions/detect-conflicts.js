@@ -89,7 +89,7 @@ function checkDeprecatedContent(article) {
         feature: item.feature,
         deprecated_date: item.deprecated_date,
         reason: item.reason,
-        article_date: article.created_at
+        article_date: article.updated_at || article.created_at
       });
     }
   });
@@ -158,7 +158,7 @@ exports.handler = async (event, context) => {
     const { data: articles, error } = await supabase
       .from('kb_articles')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (error) throw error;
 

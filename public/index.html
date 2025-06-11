@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Knowledge Base Analyzer</title>
+    <link rel="stylesheet" href="src/conflict-styles.css">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -147,6 +148,41 @@
             font-weight: bold;
             color: #0066cc;
         }
+
+        /* Phase 2 Loading Styles */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .phase2-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .phase2-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -155,6 +191,7 @@
     <div class="nav-tabs">
         <a href="#" class="active" onclick="showTab('upload')">Upload Articles</a>
         <a href="#" onclick="showTab('existing')">Existing Articles</a>
+        <a href="#" onclick="showTab('conflicts')">🔍 Conflict Detection (Phase 2)</a>
     </div>
 
     <div id="upload-tab" class="card">
@@ -169,6 +206,36 @@
         <h2>Analyze Existing Knowledge Base</h2>
         <p>Click the button below to analyze all articles in the database for conflicts and issues.</p>
         <button onclick="analyzeExisting()">Analyze Existing Articles</button>
+    </div>
+
+    <!-- Phase 2: Conflict Detection Tab -->
+    <div id="conflicts-tab" class="card" style="display: none;">
+        <h2>🔍 Phase 2: Cross-Article Conflict Detection</h2>
+        <p>Analyze your entire knowledge base for conflicts between articles, deprecated content, and relevance scoring.</p>
+        
+        <div style="margin: 20px 0;">
+            <h3>What Phase 2 Detects:</h3>
+            <ul style="color: #555; line-height: 1.6;">
+                <li><strong>Article Conflicts:</strong> Identifies contradictory advice between different articles</li>
+                <li><strong>Deprecated Content:</strong> Flags articles containing outdated technologies and practices</li>
+                <li><strong>Relevance Scoring:</strong> Evaluates article freshness and current applicability</li>
+                <li><strong>Health Metrics:</strong> Provides overall knowledge base health assessment</li>
+            </ul>
+        </div>
+
+        <button class="phase2-button" onclick="runConflictDetection()">
+            🚀 Run Complete Knowledge Base Analysis
+        </button>
+
+        <div id="conflict-loading" style="display: none; text-align: center; padding: 40px;">
+            <div class="loading-spinner"></div>
+            <p>Analyzing knowledge base for conflicts and issues...</p>
+            <p style="color: #666; font-size: 0.9em;">This may take a few moments depending on the number of articles.</p>
+        </div>
+
+        <div id="conflict-results" style="display: none;">
+            <!-- Results will be populated by JavaScript -->
+        </div>
     </div>
 
     <div id="results" class="results" style="display: none;">
@@ -188,13 +255,21 @@
         <div id="analysisResults"></div>
     </div>
 
+    <script src="src/conflict-detector.js"></script>
     <script>
         function showTab(tabName) {
             document.getElementById('upload-tab').style.display = tabName === 'upload' ? 'block' : 'none';
             document.getElementById('existing-tab').style.display = tabName === 'existing' ? 'block' : 'none';
+            document.getElementById('conflicts-tab').style.display = tabName === 'conflicts' ? 'block' : 'none';
             document.querySelectorAll('.nav-tabs a').forEach(a => {
-                a.classList.toggle('active', a.textContent.toLowerCase().includes(tabName));
+                a.classList.toggle('active', a.textContent.toLowerCase().includes(tabName) || 
+                    (tabName === 'conflicts' && a.textContent.includes('Conflict Detection')));
             });
+        }
+
+        // Phase 2: Conflict Detection Function
+        function runConflictDetection() {
+            conflictDetector.detectConflicts();
         }
 
         function handleDragOver(event) {
@@ -224,7 +299,7 @@
 
         async function analyzeExisting() {
             try {
-                const response = await fetch('/api/analyze-all', {
+                const response = await fetch('/.netlify/functions/analyze-all', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -245,7 +320,7 @@
 
         async function analyzeArticles(articles) {
             try {
-                const response = await fetch('/api/analyze-all', {
+                const response = await fetch('/.netlify/functions/analyze-all', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -270,7 +345,7 @@
                 const article = results.uploadedArticles[articleIndex];
                 const analysis = results.analyses[articleIndex].analysis;
                 
-                const response = await fetch('/api/save-article', {
+                const response = await fetch('/.netlify/functions/save-article', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

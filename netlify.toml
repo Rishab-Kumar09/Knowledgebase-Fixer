@@ -1,6 +1,5 @@
 [build]
-  # No complex build needed - just deploy static files
-  command = "# no build command needed"
+  command = "pip install -r requirements.txt"
   publish = "public"
   functions = "netlify/functions"
 
@@ -11,12 +10,4 @@
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[build.environment]
-  NODE_VERSION = "18" 
+  status = 200 

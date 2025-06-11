@@ -3,242 +3,310 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Base Articles</title>
+    <title>Knowledge Base Analyzer</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
-        }
-
-        .article-card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .article-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-
-        .article-title {
             color: #333;
-            margin-top: 0;
-            margin-bottom: 10px;
         }
 
-        .article-content {
-            color: #666;
-            margin-bottom: 15px;
-        }
-
-        .article-metadata {
-            font-size: 0.9em;
-            color: #888;
-            margin-bottom: 10px;
-        }
-
-        .tags {
+        .nav-tabs {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .tag {
-            background-color: #e0e0e0;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            color: #666;
-        }
-
-        .button-container {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 15px;
-        }
-
-        .button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .button:hover {
-            background-color: #0056b3;
-        }
-
-        .button:active {
-            background-color: #004085;
-        }
-
-        .analysis-results {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            border-left: 4px solid #007bff;
-        }
-
-        .error {
-            color: #dc3545;
-            margin-top: 10px;
-        }
-
-        .loading {
-            color: #666;
-            margin-top: 10px;
-            font-style: italic;
-        }
-
-        .search-container {
+            gap: 20px;
             margin-bottom: 20px;
         }
 
-        .search-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
+        .nav-tabs a {
+            text-decoration: none;
+            color: #0066cc;
+            padding: 10px 20px;
             border-radius: 4px;
-            margin-bottom: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .nav-tabs a:hover {
+            background-color: #e6f0ff;
+        }
+
+        .nav-tabs a.active {
+            background-color: #0066cc;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background: #fafafa;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: #0066cc;
+        }
+
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0052a3;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .score-bar {
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .issues-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .issues-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #fff3f3;
+            border-left: 4px solid #ff4444;
+            border-radius: 4px;
+        }
+
+        .recommendations-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .recommendations-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f0f7ff;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+
+        .summary {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary-item {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .summary-item h3 {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .summary-item p {
+            margin: 10px 0 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #0066cc;
         }
     </style>
 </head>
 <body>
-    <h1>Knowledge Base Articles</h1>
+    <h1>Knowledge Base Analyzer</h1>
     
-    <div class="search-container">
-        <input type="text" id="searchInput" class="search-input" placeholder="Search articles...">
+    <div class="nav-tabs">
+        <a href="#" class="active" onclick="showTab('upload')">Upload Articles</a>
+        <a href="#" onclick="showTab('existing')">Existing Articles</a>
     </div>
 
-    <div id="articles"></div>
+    <div id="upload-tab" class="card">
+        <h2>Upload Knowledge Base Articles</h2>
+        <div class="upload-area" id="dropZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" onclick="document.getElementById('fileInput').click()">
+            <p>Drag and drop files here or click to select</p>
+            <input type="file" id="fileInput" style="display: none" multiple onchange="handleFiles(this.files)">
+        </div>
+    </div>
+
+    <div id="existing-tab" class="card" style="display: none;">
+        <h2>Analyze Existing Knowledge Base</h2>
+        <p>Click the button below to analyze all articles in the database for conflicts and issues.</p>
+        <button onclick="analyzeExisting()">Analyze Existing Articles</button>
+    </div>
+
+    <div id="results" class="results" style="display: none;">
+        <h2>Analysis Results</h2>
+        
+        <div class="summary">
+            <div class="summary-item">
+                <h3>Total Articles</h3>
+                <p id="totalArticles">0</p>
+            </div>
+            <div class="summary-item">
+                <h3>Articles with Issues</h3>
+                <p id="articlesWithIssues">0</p>
+            </div>
+        </div>
+
+        <div id="analysisResults"></div>
+    </div>
 
     <script>
-        // Load articles when the page loads
-        document.addEventListener('DOMContentLoaded', loadArticles);
-        
-        // Add search functionality
-        const searchInput = document.getElementById('searchInput');
-        let searchTimeout;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                const query = e.target.value.trim();
-                if (query) {
-                    searchArticles(query);
-                } else {
-                    loadArticles();
-                }
-            }, 300);
-        });
+        function showTab(tabName) {
+            document.getElementById('upload-tab').style.display = tabName === 'upload' ? 'block' : 'none';
+            document.getElementById('existing-tab').style.display = tabName === 'existing' ? 'block' : 'none';
+            document.querySelectorAll('.nav-tabs a').forEach(a => {
+                a.classList.toggle('active', a.textContent.toLowerCase().includes(tabName));
+            });
+        }
 
-        async function loadArticles() {
-            try {
-                const response = await fetch('/api/articles');
-                if (!response.ok) throw new Error('Failed to fetch articles');
-                const articles = await response.json();
-                displayArticles(articles);
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('articles').innerHTML = `<div class="error">Error loading articles: ${error.message}</div>`;
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            const files = event.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        async function handleFiles(files) {
+            const articles = [];
+            for (const file of files) {
+                const content = await file.text();
+                articles.push({
+                    title: file.name,
+                    content: content
+                });
             }
+            
+            analyzeArticles(articles);
         }
 
-        async function searchArticles(query) {
+        async function analyzeExisting() {
             try {
-                const response = await fetch(`/api/articles/search?q=${encodeURIComponent(query)}`);
-                if (!response.ok) throw new Error('Failed to search articles');
-                const articles = await response.json();
-                displayArticles(articles);
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('articles').innerHTML = `<div class="error">Error searching articles: ${error.message}</div>`;
-            }
-        }
-
-        function displayArticles(articles) {
-            const articlesDiv = document.getElementById('articles');
-            articlesDiv.innerHTML = articles.map(article => `
-                <div class="article-card" id="article-${article.id}">
-                    <h2 class="article-title">${article.title}</h2>
-                    <div class="article-metadata">
-                        ${article.author ? `By ${article.author} • ` : ''}
-                        ${article.type} ${article.version ? `• Version ${article.version}` : ''}
-                    </div>
-                    ${article.tags && article.tags.length > 0 ? `
-                        <div class="tags">
-                            ${article.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                    <div class="article-content">${article.content}</div>
-                    <div class="button-container">
-                        <button class="button" onclick="getRelatedArticles('${article.id}')">Show Related</button>
-                        <button class="button" onclick="analyzeArticle('${article.id}')">Analyze</button>
-                    </div>
-                    <div id="analysis-${article.id}" class="analysis-results" style="display: none;"></div>
-                    <div id="related-${article.id}" class="analysis-results" style="display: none;"></div>
-                </div>
-            `).join('');
-        }
-
-        async function analyzeArticle(articleId) {
-            const analysisDiv = document.getElementById(`analysis-${articleId}`);
-            try {
-                analysisDiv.style.display = 'block';
-                analysisDiv.innerHTML = '<div class="loading">Analyzing article...</div>';
-                
-                const response = await fetch(`/api/articles/${articleId}/analyze`, {
-                    method: 'POST'
+                const response = await fetch('/api/analyze-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ articles: [] })  // Backend will load existing articles
                 });
                 
-                if (!response.ok) throw new Error('Failed to analyze article');
-                const result = await response.json();
+                if (!response.ok) throw new Error('Failed to analyze articles');
                 
-                analysisDiv.innerHTML = `
-                    <h3>Analysis Results:</h3>
-                    <pre>${JSON.stringify(result.analysis, null, 2)}</pre>
-                `;
+                const results = await response.json();
+                displayResults(results);
             } catch (error) {
                 console.error('Error:', error);
-                analysisDiv.innerHTML = `<div class="error">Error analyzing article: ${error.message}</div>`;
+                alert('Failed to analyze articles: ' + error.message);
             }
         }
 
-        async function getRelatedArticles(articleId) {
-            const relatedDiv = document.getElementById(`related-${articleId}`);
+        async function analyzeArticles(articles) {
             try {
-                relatedDiv.style.display = 'block';
-                relatedDiv.innerHTML = '<div class="loading">Finding related articles...</div>';
+                const response = await fetch('/api/analyze-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ articles })
+                });
                 
-                const response = await fetch(`/api/articles/${articleId}/related`);
-                if (!response.ok) throw new Error('Failed to fetch related articles');
-                const relatedArticles = await response.json();
+                if (!response.ok) throw new Error('Failed to analyze articles');
                 
-                relatedDiv.innerHTML = `
-                    <h3>Related Articles:</h3>
-                    ${relatedArticles.map(article => `
-                        <div class="article-card">
-                            <h4>${article.title}</h4>
-                            <p>Similarity: ${(article.similarity * 100).toFixed(1)}%</p>
-                        </div>
-                    `).join('')}
-                `;
+                const results = await response.json();
+                displayResults(results);
             } catch (error) {
                 console.error('Error:', error);
-                relatedDiv.innerHTML = `<div class="error">Error finding related articles: ${error.message}</div>`;
+                alert('Failed to analyze articles: ' + error.message);
             }
+        }
+
+        function displayResults(results) {
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('totalArticles').textContent = results.total_articles;
+            document.getElementById('articlesWithIssues').textContent = results.articles_with_issues;
+
+            const analysisResults = document.getElementById('analysisResults');
+            analysisResults.innerHTML = results.analyses.map(article => `
+                <div class="card">
+                    <h3>${article.title}</h3>
+                    
+                    <h4>VERSION INFORMATION</h4>
+                    <p>Versions Mentioned: ${article.analysis.version_info.versions_mentioned.join(', ')}</p>
+                    <p>Latest Version: ${article.analysis.version_info.latest_version || 'N/A'}</p>
+                    <p>Release Date: ${article.analysis.version_info.release_date || 'N/A'}</p>
+                    
+                    <h4>CONTENT QUALITY</h4>
+                    <div>
+                        <label>Freshness Score: ${article.analysis.content_quality.freshness}</label>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${article.analysis.content_quality.freshness * 100}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Technical Score: ${article.analysis.content_quality.technical}</label>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${article.analysis.content_quality.technical * 100}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Clarity Score: ${article.analysis.content_quality.clarity}</label>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${article.analysis.content_quality.clarity * 100}%"></div>
+                        </div>
+                    </div>
+                    
+                    <h4>ISSUES FOUND</h4>
+                    <ul class="issues-list">
+                        ${article.analysis.issues_found.map(issue => `<li>${issue}</li>`).join('')}
+                    </ul>
+                    
+                    <h4>RECOMMENDED UPDATES</h4>
+                    <ul class="recommendations-list">
+                        ${article.analysis.recommended_updates.map(update => `<li>${update}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
         }
     </script>
 </body>

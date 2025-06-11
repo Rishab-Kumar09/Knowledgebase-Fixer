@@ -1,4 +1,4 @@
-from supabase import create_client
+from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 
@@ -10,7 +10,7 @@ supabase_key = os.environ.get("SUPABASE_KEY")
 if not supabase_url or not supabase_key:
     raise ValueError("Missing Supabase configuration. Please set SUPABASE_URL and SUPABASE_KEY environment variables.")
 
-supabase = create_client(supabase_url, supabase_key)
+supabase: Client = create_client(supabase_url, supabase_key)
 
 def store_article(title, content, version=None, author=None):
     """Store an article in Supabase."""

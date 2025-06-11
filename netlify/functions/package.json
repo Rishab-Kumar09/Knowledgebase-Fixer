@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Netlify functions for Knowledge Base Analyzer",
   "dependencies": {
-    "@supabase/supabase-js": "^2.21.0",
+    "@supabase/supabase-js": "^2.39.3",
     "openai": "^3.2.1"
   }
 } 

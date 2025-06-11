@@ -11,39 +11,129 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-function analyzeArticleContent(content) {
-  // Extract version information
-  const versionPattern = /v\d+\.\d+(\.\d+)?/g;
-  const versions = content.match(versionPattern) || [];
+function analyzeArticleContent(content, metadata = {}) {
+  // Extract version information - more flexible patterns
+  const versionPatterns = [
+    /v\d+\.\d+(\.\d+)?/gi,           // v1.0, v2.1
+    /version\s+\d+\.\d+(\.\d+)?/gi,  // version 1.2.3
+    /\d+\.\d+(\.\d+)?\s+release/gi,  // 1.2.3 release
+    /api\s+v\d+/gi,                  // API v1
+    /\d+\.\d+(\.\d+)?/g              // just numbers like 1.2.3
+  ];
+  
+  let versions = [];
+  versionPatterns.forEach(pattern => {
+    const matches = content.match(pattern) || [];
+    versions = versions.concat(matches);
+  });
+  
+  // Use database version if available and not found in content
+  if (metadata.version && versions.length === 0) {
+    versions.push(metadata.version);
+  }
+  
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
 
-  // Extract dates
-  const datePattern = /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},\s+\d{4}\b/gi;
-  const dates = content.match(datePattern) || [];
-  const latestDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => new Date(d)))) : null;
+  // Extract dates - more flexible patterns
+  const datePatterns = [
+    /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}\b/gi,
+    /\d{1,2}\/\d{1,2}\/\d{4}/g,      // MM/DD/YYYY
+    /\d{4}-\d{2}-\d{2}/g,            // YYYY-MM-DD
+    /\d{1,2}-\d{1,2}-\d{4}/g,        // MM-DD-YYYY
+    /updated?\s+(?:on\s+)?\d{4}/gi,   // updated 2024
+    /last\s+modified?\s+\d{4}/gi,     // last modified 2024
+    /\d{4}/g                         // just year
+  ];
+  
+  let dates = [];
+  datePatterns.forEach(pattern => {
+    const matches = content.match(pattern) || [];
+    dates = dates.concat(matches);
+  });
+  
+  // Try to parse dates and find the most recent
+  let latestDate = null;
+  if (dates.length > 0) {
+    const parsedDates = dates.map(dateStr => {
+      try {
+        // Handle different date formats
+        if (/^\d{4}$/.test(dateStr)) {
+          return new Date(parseInt(dateStr), 0, 1); // Just year
+        }
+        return new Date(dateStr);
+      } catch {
+        return null;
+      }
+    }).filter(date => date && !isNaN(date));
+    
+    if (parsedDates.length > 0) {
+      latestDate = new Date(Math.max(...parsedDates));
+    }
+  }
+  
+  // Use database dates if no dates found in content
+  if (!latestDate && metadata.updated_at) {
+    latestDate = new Date(metadata.updated_at);
+  } else if (!latestDate && metadata.created_at) {
+    latestDate = new Date(metadata.created_at);
+  }
 
-  // Analyze content for issues (simplified version for demo)
+  // Analyze content for issues (enhanced patterns)
   const issues = [];
   const recommendations = [];
 
+  // Check for API key security issues
   if (content.toLowerCase().includes('plain text') && content.toLowerCase().includes('api key')) {
     issues.push('Recommends storing API keys in plain text');
     recommendations.push('Advise against storing API keys in plain text for security reasons');
   }
 
-  if (content.toLowerCase().includes('http://') || content.toLowerCase().includes('http ')) {
+  // Check for HTTP vs HTTPS
+  if (content.toLowerCase().includes('http://') || (content.toLowerCase().includes('http ') && !content.toLowerCase().includes('https'))) {
     issues.push('Suggests using HTTP for all API endpoints');
     recommendations.push('Recommend using HTTPS for all API endpoints to ensure data security');
   }
 
-  if (content.toLowerCase().includes('md5')) {
+  // Check for weak password hashing
+  if (content.toLowerCase().includes('md5') && (content.toLowerCase().includes('password') || content.toLowerCase().includes('hash'))) {
     issues.push('Advises using MD5 for password hashing');
     recommendations.push('Recommend using a more secure method for password hashing, such as bcrypt or Argon2');
   }
 
-  if (content.toLowerCase().includes('without') && content.toLowerCase().includes('secure flag')) {
-    issues.push('Recommends storing tokens in cookies without the secure flag');
+  // Check for cookie security
+  if (content.toLowerCase().includes('cookie') && content.toLowerCase().includes('without') && content.toLowerCase().includes('security')) {
+    issues.push('Recommends storing tokens in cookies without security flags');
     recommendations.push('Suggest storing tokens in cookies with the secure flag to prevent cross-site scripting attacks');
+  }
+
+  // Check for hardcoded credentials
+  if (content.toLowerCase().includes('hardcode') && (content.toLowerCase().includes('password') || content.toLowerCase().includes('credential'))) {
+    issues.push('Recommends hardcoding database credentials');
+    recommendations.push('Use environment variables or secure credential management instead of hardcoding passwords');
+  }
+
+  // Check for file upload security
+  if (content.toLowerCase().includes('file') && content.toLowerCase().includes('without validation')) {
+    issues.push('Allows file uploads without proper validation');
+    recommendations.push('Implement proper file validation and sanitization for uploads');
+  }
+
+  // Check for public file access
+  if (content.toLowerCase().includes('publicly accessible') || (content.toLowerCase().includes('public') && content.toLowerCase().includes('read/write'))) {
+    issues.push('Recommends making files publicly accessible with full permissions');
+    recommendations.push('Restrict file permissions and avoid making sensitive directories publicly accessible');
+  }
+
+  // Check for backup security
+  if (content.toLowerCase().includes('backup') && content.toLowerCase().includes('without encryption')) {
+    issues.push('Suggests storing backups without encryption');
+    recommendations.push('Always encrypt backup files and store them in secure, separate locations');
+  }
+
+  // Check for SQL injection vulnerabilities
+  if (content.toLowerCase().includes('sql') && content.toLowerCase().includes('concatenat')) {
+    issues.push('Suggests SQL query concatenation');
+    recommendations.push('Use parameterized queries to prevent SQL injection attacks');
   }
 
   return {
@@ -54,7 +144,8 @@ function analyzeArticleContent(content) {
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
-      }) : null
+      }) : null,
+      author: metadata.author || null
     },
     content_quality: {
       freshness: Math.random() * 0.3 + 0.7, // Random score between 0.7-1.0
@@ -108,7 +199,11 @@ exports.handler = async (event, context) => {
       
       articlesToAnalyze = supabaseArticles.map(article => ({
         title: article.title,
-        content: article.content
+        content: article.content,
+        version: article.version,
+        author: article.author,
+        created_at: article.created_at,
+        updated_at: article.updated_at
       }));
     }
 
@@ -130,7 +225,20 @@ exports.handler = async (event, context) => {
     };
 
     for (const article of articlesToAnalyze) {
-      const analysis = analyzeArticleContent(article.content);
+      const analysis = analyzeArticleContent(article.content, {
+        version: article.version,
+        author: article.author,
+        created_at: article.created_at,
+        updated_at: article.updated_at
+      });
+      
+      // Debug logging to see what's being analyzed
+      console.log('Analyzing article:', article.title);
+      console.log('Content preview:', article.content.substring(0, 200) + '...');
+      console.log('Versions found:', analysis.version_info.versions_mentioned);
+      console.log('Latest version:', analysis.version_info.latest_version);
+      console.log('Release date:', analysis.version_info.release_date);
+      
       results.analyses.push({
         title: article.title || 'Untitled',
         analysis: analysis

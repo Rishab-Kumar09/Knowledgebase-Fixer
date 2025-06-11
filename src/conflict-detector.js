@@ -3,13 +3,16 @@ class ConflictDetector {
     constructor() {
         this.conflictData = null;
         this.isLoading = false;
+        console.log('ConflictDetector initialized');
     }
 
     async detectConflicts() {
+        console.log('Starting conflict detection...');
         this.isLoading = true;
         this.updateLoadingState();
 
         try {
+            console.log('Fetching from /.netlify/functions/detect-conflicts');
             const response = await fetch('/.netlify/functions/detect-conflicts', {
                 method: 'POST',
                 headers: {
@@ -18,11 +21,13 @@ class ConflictDetector {
                 body: JSON.stringify({})
             });
 
+            console.log('Response status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             this.conflictData = await response.json();
+            console.log('Conflict data received:', this.conflictData);
             this.displayResults();
         } catch (error) {
             console.error('Error detecting conflicts:', error);
@@ -37,6 +42,8 @@ class ConflictDetector {
         const loadingElement = document.getElementById('conflict-loading');
         const resultsElement = document.getElementById('conflict-results');
         
+        console.log('Updating loading state:', { loading: this.isLoading, loadingElement: !!loadingElement, resultsElement: !!resultsElement });
+        
         if (loadingElement) {
             loadingElement.style.display = this.isLoading ? 'block' : 'none';
         }
@@ -46,12 +53,20 @@ class ConflictDetector {
     }
 
     displayResults() {
-        if (!this.conflictData) return;
+        console.log('Displaying results...');
+        if (!this.conflictData) {
+            console.log('No conflict data to display');
+            return;
+        }
 
         const resultsContainer = document.getElementById('conflict-results');
-        if (!resultsContainer) return;
+        if (!resultsContainer) {
+            console.error('Results container not found');
+            return;
+        }
 
         const { summary, conflicts, deprecated_articles, relevance_scores, recommendations } = this.conflictData;
+        console.log('Summary:', summary);
 
         resultsContainer.innerHTML = `
             <div class="conflict-summary">
@@ -92,9 +107,12 @@ class ConflictDetector {
             ${this.renderDeprecatedArticles(deprecated_articles)}
             ${this.renderRelevanceScores(relevance_scores)}
         `;
+        
+        console.log('Results displayed successfully');
     }
 
     renderConflicts(conflicts) {
+        console.log('Rendering conflicts:', conflicts?.length || 0);
         if (!conflicts || conflicts.length === 0) {
             return `
                 <div class="section-container">
@@ -145,6 +163,7 @@ class ConflictDetector {
     }
 
     renderDeprecatedArticles(deprecatedArticles) {
+        console.log('Rendering deprecated articles:', deprecatedArticles?.length || 0);
         if (!deprecatedArticles || deprecatedArticles.length === 0) {
             return `
                 <div class="section-container">
@@ -183,6 +202,7 @@ class ConflictDetector {
     }
 
     renderRelevanceScores(relevanceScores) {
+        console.log('Rendering relevance scores:', relevanceScores?.length || 0);
         if (!relevanceScores || relevanceScores.length === 0) {
             return '';
         }
@@ -238,6 +258,7 @@ class ConflictDetector {
     }
 
     displayError(message) {
+        console.log('Displaying error:', message);
         const resultsContainer = document.getElementById('conflict-results');
         if (resultsContainer) {
             resultsContainer.innerHTML = `
@@ -254,4 +275,5 @@ class ConflictDetector {
 }
 
 // Initialize the conflict detector
-const conflictDetector = new ConflictDetector(); 
+const conflictDetector = new ConflictDetector();
+console.log('ConflictDetector script loaded'); 
